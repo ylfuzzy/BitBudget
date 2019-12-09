@@ -1,46 +1,101 @@
 #!/usr/bin/python3
 import numpy as np
 import time
+import copy
 
 class BitBudgetReallocation:
-    def __init__(self, parAvgBits, cKeras, cIndexes, bIndexes=None):
+    def __init__(self, parAvgBits, cKeras, cIndexes, bIndexes, minimum=False):
         self.cKeras = cKeras
         self.cIndexes = cIndexes
         self.bIndexes = bIndexes
-        self.weights = cIndexes[0]
-        self.bias = cIndexes[1]
-        self.iLen = np.shape(self.weights)[0]
-        self.jLen = np.shape(self.weights)[1]
-        self.kLen = np.shape(self.weights)[2]
-        self.numParameters = self.iLen * self.jLen
+        self.minimum = minimum
         self.list1DTo3D = self.mapOneDToThreeD()
         self.bitBudget = len(self.list1DTo3D) * parAvgBits
-        print('bitBudget: ', self.bitBudget)
-        print('numOfPars: ', len(self.list1DTo3D))
+    
+        # For dfs
+        self.dfsMaxVal = -np.inf
+        self.dfsBitPars = []
+        self.dfsTempBitPars = []
+        #print('bitBudget: ', self.bitBudget)
+        #print('numOfPars: ', len(self.list1DTo3D))
     
     def mapOneDToThreeD(self):
         list1DTo3D = []
         for i in range(np.shape(self.cIndexes)[0]):
             if i % 2 == 0:
-                w = cIndexes[i]
+                w = self.cIndexes[i]
                 for iW in range(np.shape(w)[0]):
                     for jW in range(np.shape(w)[1]):
-                        # Inverse the value to find the MININUM
-                        w[iW][jW] = [-v for v in w[iW][jW]]
+                        if self.minimum:
+                            # Inverse the value to find the minimum
+                            w[iW][jW] = [-v for v in w[iW][jW]]
 
                         # Don't consider 0th bit's impact
                         #w[iW][jW][0] = 0
                         list1DTo3D.append((i, iW, jW))
             else:
-                b = cIndexes[i]
+                b = self.cIndexes[i]
                 for iB in range(np.shape(b)[0]):
-                    # Inverse the value to find the MININUM
-                    b[iB] = [-v for v in b[iB]]
+                    if self.minimum:
+                        # Inverse the value to find the MININUM
+                        b[iB] = [-v for v in b[iB]]
 
                     # Don't consider 0th bit's impact
                     #b[iB][0] = 0
                     list1DTo3D.append((i, iB))
         return list1DTo3D
+    
+    def solveByBruteForce(self):
+        #self.dfsMaxVal = -np.inf
+        #self.dfsBitPars = []
+        #self.dfsTempBitPars = []
+        #self.__dfs(0, 0, 0)
+        #return (self.dfsMaxVal, self.dfsBitPars)
+        # permutation = []
+        # for i0 in range(4):
+        #     for i1 in range(4):
+        #         for i2 in range(4):
+        #             for i3 in range(4):
+        #                 permutation.append((i0, i1, i2, i3))
+        # maxS = -np.inf
+        # for p in permutation:
+        #     if sum(p) <= self.bitBudget:
+        #         s = 0
+        #         for i in range(4):
+        #             idxTuple = self.list1DTo3D[i]
+        #             cPars = self.cIndexes[idxTuple[0]][idxTuple[1]]
+        #             weightDim = 3
+        #             if len(idxTuple) == weightDim:
+        #                 cPars = self.cIndexes[idxTuple[0]][idxTuple[1]][idxTuple[2]]
+        #             s += cPars[p[i]]
+        #         maxS = max(maxS, s)
+
+        self.dfsMaxVal = -np.inf
+        self.dfsBitPars = []
+        self.dfsTempBitPars = []
+        self.__dfs(0)
+        return (self.dfsMaxVal, self.dfsBitPars)
+                    
+
+    def __dfs(self, i):
+        if i == len(self.list1DTo3D):
+            if sum(self.dfsTempBitPars) <= self.bitBudget:
+                curVal = 0
+                for iP in range(len(self.dfsTempBitPars)):
+                    idxTuple = self.list1DTo3D[iP]
+                    cPars = self.cIndexes[idxTuple[0]][idxTuple[1]]
+                    weightDim = 3
+                    if len(idxTuple) == weightDim:
+                        cPars = self.cIndexes[idxTuple[0]][idxTuple[1]][idxTuple[2]]
+                    curVal += cPars[self.dfsTempBitPars[iP]]
+                if curVal > self.dfsMaxVal:
+                    self.dfsMaxVal = curVal
+                    self.dfsBitPars = copy.deepcopy(self.dfsTempBitPars)
+            return None
+        for iB in range(4):
+            self.dfsTempBitPars.append(iB)
+            self.__dfs(i + 1)
+            self.dfsTempBitPars = self.dfsTempBitPars[:-1]
 
     def buildUpDPTable(self):
         dp = [[0] * (self.bitBudget + 1) for i in range(len(self.list1DTo3D))]
@@ -79,9 +134,6 @@ class BitBudgetReallocation:
 
     def getRelocatedPars(self):
         dp = self.buildUpDPTable()
-        print('============= DP Table =============')
-        for i in dp:
-            print(i)
         relocatedPars = []
         i = len(dp) - 1
         j = len(dp[0]) - 1
