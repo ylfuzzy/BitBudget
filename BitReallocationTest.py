@@ -37,23 +37,21 @@ class TestCaseGenerator:
 
 class BitReallocationTest(unittest.TestCase):
     def testR1C2Avg2(self):
-        numRow = 2
-        numCol = 2
-        avgBits = 2
+        numRow = 3
+        numCol = 10
+        avgBits = 3
         tcg = TestCaseGenerator()
         for i in range(1):
             cIndexes = tcg.genTestCase(numRow, numCol)
             bIndexes = tcg.genTestCase(numRow, numCol)
             cKeras = tcg.getCKeras(numRow, numCol)
             reallocator = BitBudgetReallocation(avgBits, cKeras, cIndexes, bIndexes)
-            (valBF, bitParsBF) = reallocator.solveByBruteForce()
+            (valBF, bitParsBF, relocatedMatrixBF) = reallocator.solveByBruteForce()
             dp = reallocator.buildUpDPTable()
-            #print(cIndexes)
+            print(relocatedMatrixBF)
+            relocatedMatrixDP = reallocator.genReallocatedMatrix()
             print()
-            for row in dp:
-                print(dp)
-            #print()
-            print(bitParsBF)
+            print(relocatedMatrixDP)
             self.assertEqual(valBF, dp[-1][-1][0])
     #
     #def testR1C2Avg3(self):

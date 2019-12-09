@@ -10,7 +10,7 @@ class BitBudgetReallocation:
         self.bIndexes = bIndexes
         self.minimum = minimum
         self.list1DTo3D = self.mapOneDToThreeD()
-        self.bitBudget = len(self.list1DTo3D) * parAvgBits
+        self.bitBudget = int(len(self.list1DTo3D) * parAvgBits)
     
         # For dfs
         self.dfsMaxVal = -np.inf
@@ -46,35 +46,23 @@ class BitBudgetReallocation:
         return list1DTo3D
     
     def solveByBruteForce(self):
-        #self.dfsMaxVal = -np.inf
-        #self.dfsBitPars = []
-        #self.dfsTempBitPars = []
-        #self.__dfs(0, 0, 0)
-        #return (self.dfsMaxVal, self.dfsBitPars)
-        # permutation = []
-        # for i0 in range(4):
-        #     for i1 in range(4):
-        #         for i2 in range(4):
-        #             for i3 in range(4):
-        #                 permutation.append((i0, i1, i2, i3))
-        # maxS = -np.inf
-        # for p in permutation:
-        #     if sum(p) <= self.bitBudget:
-        #         s = 0
-        #         for i in range(4):
-        #             idxTuple = self.list1DTo3D[i]
-        #             cPars = self.cIndexes[idxTuple[0]][idxTuple[1]]
-        #             weightDim = 3
-        #             if len(idxTuple) == weightDim:
-        #                 cPars = self.cIndexes[idxTuple[0]][idxTuple[1]][idxTuple[2]]
-        #             s += cPars[p[i]]
-        #         maxS = max(maxS, s)
-
         self.dfsMaxVal = -np.inf
         self.dfsBitPars = []
         self.dfsTempBitPars = []
         self.__dfs(0)
-        return (self.dfsMaxVal, self.dfsBitPars)
+        relocatedMatrix = self.init_origin_w_zero()
+        for i in range(len(self.list1DTo3D)):
+            numBitsUsed = self.dfsBitPars[i]
+            idxTuple = self.list1DTo3D[i]
+            i = idxTuple[0]
+            j = idxTuple[1]
+            if len(idxTuple) == 3:
+                k = idxTuple[2]
+                relocatedMatrix[i][j][k] = self.bIndexes[i][j][k][numBitsUsed]
+            else:
+                relocatedMatrix[i][j] = self.bIndexes[i][j][numBitsUsed]
+            
+        return (self.dfsMaxVal, self.dfsBitPars, relocatedMatrix)
                     
 
     def __dfs(self, i):
@@ -168,7 +156,7 @@ class BitBudgetReallocation:
             init_val_matrix.append(arr_append)
         return init_val_matrix
     
-    def genRelacatedMatrix(self):
+    def genReallocatedMatrix(self):
         relocatedPars = self.getRelocatedPars()
         relocatedMatrix = self.init_origin_w_zero()
         for p in relocatedPars:
