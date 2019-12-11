@@ -2,13 +2,18 @@
 import numpy as np
 import time
 import copy
+from DataOperator import DataOperator
 
 class BitBudgetReallocation:
-    def __init__(self, parAvgBits, cKeras, cIndexes, bIndexes, minimum=False):
+    def __init__(self, parAvgBits, cKeras, cIndexes, bIndexes, minimum=False, saveToDisk=False):
         self.cKeras = cKeras
         self.cIndexes = cIndexes
         self.bIndexes = bIndexes
         self.minimum = minimum
+        self.saveToDisk = saveToDisk
+        self.dataOperator = None
+        if self.saveToDisk:
+            self.dataOperator = DataOperator()
         self.list1DTo3D = self.mapOneDToThreeD()
         self.bitBudget = int(len(self.list1DTo3D) * parAvgBits)
     
@@ -16,8 +21,6 @@ class BitBudgetReallocation:
         self.dfsMaxVal = -np.inf
         self.dfsBitPars = []
         self.dfsTempBitPars = []
-        #print('bitBudget: ', self.bitBudget)
-        #print('numOfPars: ', len(self.list1DTo3D))
     
     def mapOneDToThreeD(self):
         list1DTo3D = []
@@ -85,6 +88,71 @@ class BitBudgetReallocation:
             self.__dfs(i + 1)
             self.dfsTempBitPars = self.dfsTempBitPars[:-1]
 
+    def buildUpDPTableSaveToDisk(self):
+        # Initialize the base row
+        dpChunk = [[0] * (self.bitBudget + 1)]
+        for j in range(self.bitBudget + 1):
+            firstIdxTuple = self.list1DTo3D[0]
+            cPars = self.cIndexes[firstIdxTuple[0]][firstIdxTuple[1]][firstIdxTuple[2]]
+            maxVal = cPars[0]
+            numBitsMaxVal = 0
+            for numBits in range(len(cPars)):
+                if j >= numBits and cPars[numBits] > maxVal:
+                    maxVal = cPars[numBits]
+                    numBitsMaxVal = numBits
+            dpChunk[0][j] = (maxVal, numBitsMaxVal)
+        
+        # Write the base case to the file
+        self.dataOperator.writeDPChunkToFile(dpChunk)
+        
+        # Build up the table
+        threshold = 100
+        numLines = 0
+        numSegments = 0
+        print(len(self.list1DTo3D))
+        for i in range(1, len(self.list1DTo3D)):
+            # Generate a new row
+            dpChunk.append([0] * (self.bitBudget + 1))
+            idxTuple = self.list1DTo3D[i]
+            cPars = self.cIndexes[idxTuple[0]][idxTuple[1]]
+            weightDim = 3
+            if len(idxTuple) == weightDim:
+                cPars = self.cIndexes[idxTuple[0]][idxTuple[1]][idxTuple[2]]
+            
+            # Calculate the offset
+            offset = threshold * numSegments
+            iOffset = int(i - offset)
+            if numSegments == 0:
+                iOffset = i
+            # print('i: ', i)
+            # print('threshold: ', threshold)
+            # print('numSegments: ', numSegments)
+            # print('iOffset: ', iOffset)
+            for j in range(self.bitBudget + 1):
+                maxVal = dpChunk[iOffset - 1][j][0] + cPars[0]
+                numBitsMaxVal = 0
+                for numBits in range(len(cPars)):
+                    newVal = cPars[numBits] + dpChunk[iOffset - 1][j - numBits][0]
+                    if j >= numBits and newVal > maxVal:
+                        maxVal = newVal
+                        numBitsMaxVal = numBits
+                dpChunk[iOffset][j] = (maxVal, numBitsMaxVal)
+            
+            # Calculate current number of lines
+            # If it already equals to the threshold, save the them to the disk
+            numLines += 1
+            if numLines == threshold or i == len(self.list1DTo3D) - 1:
+                numLines = 0
+                numSegments += 1
+                self.dataOperator.writeDPChunkToFile(dpChunk[1:])
+                lastRow = dpChunk[-1]
+                dpChunk = [lastRow]
+                print('threshold: ', threshold)
+                print('numSegments: ', numSegments)
+                print('iOffset: ', iOffset)
+            
+        return dpChunk
+
     def buildUpDPTable(self):
         dp = [[0] * (self.bitBudget + 1) for i in range(len(self.list1DTo3D))]
 
@@ -109,7 +177,6 @@ class BitBudgetReallocation:
                 cPars = self.cIndexes[idxTuple[0]][idxTuple[1]][idxTuple[2]]
 
             for j in range(self.bitBudget + 1):
-                lastStep = (i - 1, j)
                 maxVal = dp[i - 1][j][0] + cPars[0]
                 numBitsMaxVal = 0
                 for numBits in range(len(cPars)):
@@ -176,40 +243,33 @@ if __name__ == '__main__':
     cIndexesPath = './c_results_GQ_B_0123_Relocation_valid.npy'
     bIndexesPath = './b_after_GQ_B_0123_Relocation_No_Hidden.npy'
     cKerasPath = './Original_weights_ES_SGD_LogReg_Softmax_11_18.npy'
-    test = True
+    test = False
     if test:
         cIndexes = [list([[[0, -1, 2, 3],[1, 5, -2, 3]]]), list([[10, 1, 2, 3], [2, -7, 0, 4]])]
         bIndexes = [list([[[0, -1, 2, 3],[1, 5, -2, 3]]]), list([[10, 1, 2, 3], [2, -7, 0, 4]])]
         cKeras = [np.array([[0.1, -0.5]]), np.array([-3, -5])]
     else:
-        cIndexes = np.load(cIndexesPath)#[list([[[0, -1, 2, 3],[1, 5, -2, 3]]]), list([[10, 1, 2, 3], [2, -7, 0, 4]])]
-        bIndexes = np.load(bIndexesPath)#[list([[[0, -1, 2, 3],[1, 5, -2, 3]]]), list([[10, 1, 2, 3], [2, -7, 0, 4]])]
-        cKeras = np.load(cKerasPath)#[np.array([[0.1, -0.5]]), np.array([-3, -5])]
-    #weights = [[[-1, 2, 3], [5, 2, 3]]
-    #cIndexes = np.array([[[[-1, 2, 3], [5, 2, 3]]], [[1, 2, 3], [-7, 0, 4]]])
-    #bIndexes = [[1, 2, 3], [-7, 0, 4]]
+        cIndexes = np.load(cIndexesPath)
+        bIndexes = np.load(bIndexesPath)
+        cKeras = np.load(cKerasPath)
+
     print(np.shape(cIndexes[0]))
     print(np.shape(bIndexes[0]))
     print(np.shape(cKeras[0]))
     # bitBudget = 2 * 4
     tStart = time.time()
-    reallocator = BitBudgetReallocation(2, cKeras, cIndexes, bIndexes)
-    #print(reallocator.cIndexes)
-    print(reallocator.cal2ndBitInpact())
+    reallocator = BitBudgetReallocation(2, cKeras, cIndexes, bIndexes, saveToDisk=True)
+    dpChunk = reallocator.buildUpDPTableSaveToDisk()
+    print(dpChunk[0][-1])
     dp = reallocator.buildUpDPTable()
-    print(dp[-1][-1][0])
-    relocatedMatrix = reallocator.genRelacatedMatrix()
-    print(relocatedMatrix)
+    print(dp[-1][-1])
+    #print(reallocator.cIndexes)
+    #print(reallocator.cal2ndBitInpact())
+    #dp = reallocator.buildUpDPTable()
+    #print(dp[-1][-1][0])
+    #relocatedMatrix = reallocator.genRelacatedMatrix()
+    #print(relocatedMatrix)
     #np.save('BitReallocatedWeight.npy', relocatedMatrix)
     tEnd = time.time()
     tTotal = tEnd - tStart
     print('Total Time: ', tTotal)
-    #print(np.shape(cIndexes[0]))
-    # print(reallocator.mapOneDToThreeD())
-    # print(reallocator.iLen)
-    # print(reallocator.getRelocatedPars())
-    # print(reallocator.init_origin_w_zero(cKeras))
-    #print(reallocator.genRelacatedMatrix())
-
-    # d = [np.array([[0.1, -0.5, -8],[1, 2.5, 9]]), np.array([-3, -5, 9])]
-    #reallocator.test()
