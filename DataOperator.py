@@ -5,11 +5,28 @@ import os
 
 class DataOperator:
     def __init__(self):
-        self.filename = 'test2222.dat'
+        self.filename = 'dpTable2222.dat'
         self.offset = 0
         self.lineOffset = []
+        self.deleteFile()
+        self.file = None
+    
+    def __initFileWriter(self):
+        if self.file == None:
+            self.file = open(self.filename, 'w')
+    
+    def __initFileReader(self):
+        if self.file == None:
+            self.file = open(self.filename, 'r')
+    
+    def deleteFile(self):
         if os.path.exists(self.filename):
             os.remove(self.filename)
+    
+    def closeFile(self):
+        if self.file != None:
+            self.file.close()
+            self.file = None
 
     def changeFilename(self, filename):
         self.filename = filename
@@ -17,45 +34,54 @@ class DataOperator:
     def genOutputTupleSeqStr(self, rowTuples):
         outputStr = ''
         for t in rowTuples:
-            outputStr += '{:.20f}'.format(t[0]) + ' ' + str(t[1]) + ','
+            outputStr += str(t[0]) + ' ' + str(t[1]) + ','
         outputStr = outputStr[:-1] + '\n'
         return outputStr
 
     def writeDPChunkToFile(self, rows):
-        with open(self.filename, 'a') as file:
+        try:
+            self.__initFileWriter()
             for r in rows:
                 line = self.genOutputTupleSeqStr(r)
-                file.write(line)
+                self.file.write(line)
                 self.lineOffset.append(self.offset)
                 self.offset += len(line)
-            file.close()
+        except:
+            self.closeFile()
+            self.deleteFile()
+            raise
 
     def convertTextRowToDPRow(self, textRow):
         textRow = textRow.split(',')
-        dpRow = [[float(entity.split(' ')[0]), int(entity.split(' ')[1])] for entity in textRow]
+        dpRow = [[float(value.split(' ')[0]), int(value.split(' ')[1])] for value in textRow]
         return dpRow
 
-    def readRowByLineOffset(self, file, iLine):
+    def readRowByLineOffset(self, iLine):
         textRow = ''
-        file.seek(self.lineOffset[iLine])
-        textRow = file.readline()
+        self.file.seek(self.lineOffset[iLine])
+        textRow = self.file.readline()
         return self.convertTextRowToDPRow(textRow)
     
     def readAChunkFromFile(self, iStart, numLines, reverse=True):
-        tick = 1
-        if reverse:
-            tick = -1
-            numLines = -numLines
-        dpRows = []
-        with open(self.filename, 'r') as file:
+        try:
+            self.__initFileReader()
+            tick = 1
+            if reverse:
+                tick = -1
+                numLines = -numLines
+
+            dpRows = []
             for iLine in range(iStart, iStart + numLines, tick):
-                dpRows.append(self.readRowByLineOffset(file, iLine))
+                dpRows.append(self.readRowByLineOffset(iLine))
 
                 # Break the loop
                 if reverse and iLine == 0 or not reverse and iLine == len(self.lineOffset) - 1:
                     break
-            file.close()
-
+        except:
+            self.closeFile()
+            self.deleteFile()
+            raise
+        
         return dpRows
 
 if __name__ == '__main__':

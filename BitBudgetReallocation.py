@@ -106,10 +106,9 @@ class BitBudgetReallocation:
         self.dataOperator.writeDPChunkToFile(dpChunk)
         
         # Build up the table
-        threshold = 100
+        threshold = 300
         numLines = 0
         numSegments = 0
-        print(len(self.list1DTo3D))
         for i in range(1, len(self.list1DTo3D)):
             # Generate a new row
             dpChunk.append([0] * (self.bitBudget + 1))
@@ -124,10 +123,7 @@ class BitBudgetReallocation:
             iOffset = int(i - offset)
             if numSegments == 0:
                 iOffset = i
-            # print('i: ', i)
-            # print('threshold: ', threshold)
-            # print('numSegments: ', numSegments)
-            # print('iOffset: ', iOffset)
+        
             for j in range(self.bitBudget + 1):
                 maxVal = dpChunk[iOffset - 1][j][0] + cPars[0]
                 numBitsMaxVal = 0
@@ -147,10 +143,10 @@ class BitBudgetReallocation:
                 self.dataOperator.writeDPChunkToFile(dpChunk[1:])
                 lastRow = dpChunk[-1]
                 dpChunk = [lastRow]
-                print('threshold: ', threshold)
                 print('numSegments: ', numSegments)
-                print('iOffset: ', iOffset)
-            
+
+        # Close the file after writing the entire dp table
+        self.dataOperator.closeFile()
         return dpChunk
 
     def buildUpDPTable(self):
@@ -204,16 +200,19 @@ class BitBudgetReallocation:
         # print(len(self.dataOperator.lineOffset))
         relocatedPars = []
         iPar = len(self.list1DTo3D) - 1
-        numLines = 100
+        numLines = 200
         jChunk = self.bitBudget
         while iPar >= 0:
             dpChunk = self.dataOperator.readAChunkFromFile(iPar, numLines)
             for iChunk in range(len(dpChunk)):
-                print('iPar: ', iPar)
                 numBitsUsed = dpChunk[iChunk][jChunk][1]
                 relocatedPars.append((self.list1DTo3D[iPar], numBitsUsed))
                 jChunk -= numBitsUsed
                 iPar -= 1
+        
+        # Close the file after reading the entire dp table
+        self.dataOperator.closeFile()
+        self.dataOperator.deleteFile()
         return relocatedPars        
 
 
@@ -266,8 +265,8 @@ if __name__ == '__main__':
     cIndexesPath = './c_results_GQ_B_0123_Relocation_valid.npy'
     bIndexesPath = './b_after_GQ_B_0123_Relocation_No_Hidden.npy'
     cKerasPath = './Original_weights_ES_SGD_LogReg_Softmax_11_18.npy'
-    test = True
-    bigFile = True
+    test = False
+    bigFile = False
     if test:
         cIndexes = [list([[[0, -1, 2, 3],[1, 5, -2, 3]]]), list([[10, 1, 2, 3], [2, -7, 0, 4]])]
         bIndexes = [list([[[0, -1, 2, 3],[1, 5, -2, 3]]]), list([[10, 1, 2, 3], [2, -7, 0, 4]])]
@@ -286,10 +285,10 @@ if __name__ == '__main__':
     print(np.shape(cKeras[0]))
     # bitBudget = 2 * 4
     tStart = time.time()
-    reallocator = BitBudgetReallocation(2, cKeras, cIndexes, bIndexes, saveToDisk=True)
+    reallocator = BitBudgetReallocation(2, cKeras, cIndexes, bIndexes, minimum=True, saveToDisk=True)
     matrix = reallocator.genReallocatedMatrix()
     #print(matrix)
-    np.save('bigmatrix.npy', matrix)
+    np.save('testNowFileExpected.npy', matrix)
     # reallocator = BitBudgetReallocation(2, cKeras, cIndexes, bIndexes, saveToDisk=False)
     # print(reallocator.genReallocatedMatrix())
     # dpChunk = reallocator.buildUpDPTableSaveToDisk()
