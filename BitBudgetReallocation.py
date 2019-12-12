@@ -198,6 +198,24 @@ class BitBudgetReallocation:
             i -= 1
             j -= numBitsUsed
         return relocatedPars
+    
+    def genRelocatedParsFromFile(self):
+        # self.dataOperator.changeFilename('testCase.dat')
+        # print(len(self.dataOperator.lineOffset))
+        relocatedPars = []
+        iPar = len(self.list1DTo3D) - 1
+        numLines = 100
+        jChunk = self.bitBudget
+        while iPar >= 0:
+            dpChunk = self.dataOperator.readAChunkFromFile(iPar, numLines)
+            for iChunk in range(len(dpChunk)):
+                print('iPar: ', iPar)
+                numBitsUsed = dpChunk[iChunk][jChunk][1]
+                relocatedPars.append((self.list1DTo3D[iPar], numBitsUsed))
+                jChunk -= numBitsUsed
+                iPar -= 1
+        return relocatedPars        
+
 
     def cal2ndBitInpact(self):
         all2ndBitInpact = 0
@@ -224,7 +242,12 @@ class BitBudgetReallocation:
         return init_val_matrix
     
     def genReallocatedMatrix(self):
-        relocatedPars = self.getRelocatedPars()
+        relocatedPars = None
+        if self.saveToDisk:
+            self.buildUpDPTableSaveToDisk()
+            relocatedPars = self.genRelocatedParsFromFile()
+        else:
+            relocatedPars = self.getRelocatedPars()
         relocatedMatrix = self.init_origin_w_zero()
         for p in relocatedPars:
             idxMultiD = p[0]
@@ -243,7 +266,8 @@ if __name__ == '__main__':
     cIndexesPath = './c_results_GQ_B_0123_Relocation_valid.npy'
     bIndexesPath = './b_after_GQ_B_0123_Relocation_No_Hidden.npy'
     cKerasPath = './Original_weights_ES_SGD_LogReg_Softmax_11_18.npy'
-    test = False
+    test = True
+    bigFile = True
     if test:
         cIndexes = [list([[[0, -1, 2, 3],[1, 5, -2, 3]]]), list([[10, 1, 2, 3], [2, -7, 0, 4]])]
         bIndexes = [list([[[0, -1, 2, 3],[1, 5, -2, 3]]]), list([[10, 1, 2, 3], [2, -7, 0, 4]])]
@@ -252,6 +276,10 @@ if __name__ == '__main__':
         cIndexes = np.load(cIndexesPath)
         bIndexes = np.load(bIndexesPath)
         cKeras = np.load(cKerasPath)
+    if bigFile:
+        cIndexes = np.load('./H32_32_ED/cIndexes_results_ED_GQ_B_Relocation_valid_32_32_Hidden_12_11.npy')
+        bIndexes = np.load('./H32_32_ED/bIndexes_after_GQ_H32_32_B_0123_Relocation_12_11.npy')
+        cKeras = np.load('./H32_32_ED/cKeras_Original_weights_H32_32_ES_SGD_12_11.npy')
 
     print(np.shape(cIndexes[0]))
     print(np.shape(bIndexes[0]))
@@ -259,10 +287,15 @@ if __name__ == '__main__':
     # bitBudget = 2 * 4
     tStart = time.time()
     reallocator = BitBudgetReallocation(2, cKeras, cIndexes, bIndexes, saveToDisk=True)
-    dpChunk = reallocator.buildUpDPTableSaveToDisk()
-    print(dpChunk[0][-1])
-    dp = reallocator.buildUpDPTable()
-    print(dp[-1][-1])
+    matrix = reallocator.genReallocatedMatrix()
+    #print(matrix)
+    np.save('bigmatrix.npy', matrix)
+    # reallocator = BitBudgetReallocation(2, cKeras, cIndexes, bIndexes, saveToDisk=False)
+    # print(reallocator.genReallocatedMatrix())
+    # dpChunk = reallocator.buildUpDPTableSaveToDisk()
+    # print(dpChunk[0][-1])
+    # dp = reallocator.buildUpDPTable()
+    # print(dp[-1][-1])
     #print(reallocator.cIndexes)
     #print(reallocator.cal2ndBitInpact())
     #dp = reallocator.buildUpDPTable()

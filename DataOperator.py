@@ -11,6 +11,9 @@ class DataOperator:
         if os.path.exists(self.filename):
             os.remove(self.filename)
 
+    def changeFilename(self, filename):
+        self.filename = filename
+
     def genOutputTupleSeqStr(self, rowTuples):
         outputStr = ''
         for t in rowTuples:
