@@ -5,7 +5,7 @@ import copy
 from DataOperator import DataOperator
 
 class BitBudgetReallocation:
-    def __init__(self, parAvgBits, cKeras, cIndexes, bIndexes, minimum=False, saveToDisk=False):
+    def __init__(self, parAvgBits, cKeras, cIndexes, bIndexes, minimum=False, saveToDisk=False, threshold=300, readThreshold=100):
         self.cKeras = cKeras
         self.cIndexes = cIndexes
         self.bIndexes = bIndexes
@@ -14,7 +14,10 @@ class BitBudgetReallocation:
         self.dataOperator = None
         if self.saveToDisk:
             self.dataOperator = DataOperator()
+            self.threshold = threshold
+            self.readThreshold = readThreshold
         self.list1DTo3D = self.mapOneDToThreeD()
+        print('num pars: ', len(self.list1DTo3D))
         self.bitBudget = int(len(self.list1DTo3D) * parAvgBits)
     
         # For dfs
@@ -106,7 +109,7 @@ class BitBudgetReallocation:
         self.dataOperator.writeDPChunkToFile(dpChunk)
         
         # Build up the table
-        threshold = 300
+        threshold = self.threshold
         numLines = 0
         numSegments = 0
         for i in range(1, len(self.list1DTo3D)):
@@ -135,7 +138,7 @@ class BitBudgetReallocation:
                 dpChunk[iOffset][j] = (maxVal, numBitsMaxVal)
             
             # Calculate current number of lines
-            # If it already equals to the threshold, save the them to the disk
+            # If it already equals to the threshold, save them to the disk
             numLines += 1
             if numLines == threshold or i == len(self.list1DTo3D) - 1:
                 numLines = 0
@@ -200,7 +203,7 @@ class BitBudgetReallocation:
         # print(len(self.dataOperator.lineOffset))
         relocatedPars = []
         iPar = len(self.list1DTo3D) - 1
-        numLines = 200
+        numLines = self.readThreshold
         jChunk = self.bitBudget
         while iPar >= 0:
             dpChunk = self.dataOperator.readAChunkFromFile(iPar, numLines)
@@ -265,8 +268,8 @@ if __name__ == '__main__':
     cIndexesPath = './c_results_GQ_B_0123_Relocation_valid.npy'
     bIndexesPath = './b_after_GQ_B_0123_Relocation_No_Hidden.npy'
     cKerasPath = './Original_weights_ES_SGD_LogReg_Softmax_11_18.npy'
-    test = False
-    bigFile = False
+    test = True
+    bigFile = True
     if test:
         cIndexes = [list([[[0, -1, 2, 3],[1, 5, -2, 3]]]), list([[10, 1, 2, 3], [2, -7, 0, 4]])]
         bIndexes = [list([[[0, -1, 2, 3],[1, 5, -2, 3]]]), list([[10, 1, 2, 3], [2, -7, 0, 4]])]
@@ -285,7 +288,7 @@ if __name__ == '__main__':
     print(np.shape(cKeras[0]))
     # bitBudget = 2 * 4
     tStart = time.time()
-    reallocator = BitBudgetReallocation(2, cKeras, cIndexes, bIndexes, minimum=True, saveToDisk=True)
+    reallocator = BitBudgetReallocation(0.5, cKeras, cIndexes, bIndexes, minimum=True, saveToDisk=True)
     matrix = reallocator.genReallocatedMatrix()
     #print(matrix)
     np.save('testNowFileExpected.npy', matrix)

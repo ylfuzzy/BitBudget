@@ -36,23 +36,33 @@ class TestCaseGenerator:
 
 
 class BitReallocationTest(unittest.TestCase):
-    def testR1C2Avg2(self):
-        numRow = 3
-        numCol = 10
-        avgBits = 3
-        tcg = TestCaseGenerator()
-        for i in range(1):
-            cIndexes = tcg.genTestCase(numRow, numCol)
-            bIndexes = tcg.genTestCase(numRow, numCol)
-            cKeras = tcg.getCKeras(numRow, numCol)
-            reallocator = BitBudgetReallocation(avgBits, cKeras, cIndexes, bIndexes)
-            (valBF, bitParsBF, relocatedMatrixBF) = reallocator.solveByBruteForce()
-            dp = reallocator.buildUpDPTable()
-            print(relocatedMatrixBF)
-            relocatedMatrixDP = reallocator.genReallocatedMatrix()
-            print()
-            print(relocatedMatrixDP)
-            self.assertEqual(valBF, dp[-1][-1][0])
+    def testNumLines87Vs300(self):
+        cIndexes = np.load('./H32_32_ED/cIndexes_results_ED_GQ_B_Relocation_valid_32_32_Hidden_12_11.npy')
+        bIndexes = np.load('./H32_32_ED/bIndexes_after_GQ_H32_32_B_0123_Relocation_12_11.npy')
+        cKeras = np.load('./H32_32_ED/cKeras_Original_weights_H32_32_ES_SGD_12_11.npy')
+
+        reallocator = BitBudgetReallocation(0.5, cKeras, cIndexes, bIndexes, minimum=True, saveToDisk=True, threshold=123, readThreshold=100)
+        t1 = reallocator.genReallocatedMatrix()
+        reallocator = BitBudgetReallocation(0.5, cKeras, cIndexes, bIndexes, minimum=True, saveToDisk=True, threshold=300, readThreshold=170)
+        t2 = reallocator.genReallocatedMatrix()
+        self.assertEqual(t1, t2)
+    #def testR1C2Avg2(self):
+    #    numRow = 3
+    #    numCol = 10
+    #    avgBits = 3
+    #    tcg = TestCaseGenerator()
+    #    for i in range(1):
+    #        cIndexes = tcg.genTestCase(numRow, numCol)
+    #        bIndexes = tcg.genTestCase(numRow, numCol)
+    #        cKeras = tcg.getCKeras(numRow, numCol)
+    #        reallocator = BitBudgetReallocation(avgBits, cKeras, cIndexes, bIndexes)
+    #        (valBF, bitParsBF, relocatedMatrixBF) = reallocator.solveByBruteForce()
+    #        dp = reallocator.buildUpDPTable()
+    #        print(relocatedMatrixBF)
+    #        relocatedMatrixDP = reallocator.genReallocatedMatrix()
+    #        print()
+    #        print(relocatedMatrixDP)
+    #        self.assertEqual(valBF, dp[-1][-1][0])
     #
     #def testR1C2Avg3(self):
     #    numRow = 1
