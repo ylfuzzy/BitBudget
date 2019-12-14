@@ -112,6 +112,9 @@ class BitBudgetReallocation:
         threshold = self.threshold
         numLines = 0
         numSegments = 0
+
+        # For debug
+        numLinesWrite = 1
         for i in range(1, len(self.list1DTo3D)):
             # Generate a new row
             dpChunk.append([0] * (self.bitBudget + 1))
@@ -123,9 +126,7 @@ class BitBudgetReallocation:
             
             # Calculate the offset
             offset = threshold * numSegments
-            iOffset = int(i - offset)
-            if numSegments == 0:
-                iOffset = i
+            iOffset = i - offset
         
             for j in range(self.bitBudget + 1):
                 maxVal = dpChunk[iOffset - 1][j][0] + cPars[0]
@@ -144,12 +145,15 @@ class BitBudgetReallocation:
                 numLines = 0
                 numSegments += 1
                 self.dataOperator.writeDPChunkToFile(dpChunk[1:])
+                print('dpChunk len: ', len(dpChunk[1:]))
+                numLinesWrite += len(dpChunk[1:])
                 lastRow = dpChunk[-1]
                 dpChunk = [lastRow]
                 print('numSegments: ', numSegments)
 
         # Close the file after writing the entire dp table
         self.dataOperator.closeFile()
+        print('numLineWrite: ', numLinesWrite)
         return dpChunk
 
     def buildUpDPTable(self):
@@ -205,8 +209,13 @@ class BitBudgetReallocation:
         iPar = len(self.list1DTo3D) - 1
         numLines = self.readThreshold
         jChunk = self.bitBudget
+
+        # For debug
+        numLinesRead = 0
         while iPar >= 0:
             dpChunk = self.dataOperator.readAChunkFromFile(iPar, numLines)
+            print('num dpChunk read: ', len(dpChunk))
+            numLinesRead += len(dpChunk)
             for iChunk in range(len(dpChunk)):
                 numBitsUsed = dpChunk[iChunk][jChunk][1]
                 relocatedPars.append((self.list1DTo3D[iPar], numBitsUsed))
@@ -216,6 +225,7 @@ class BitBudgetReallocation:
         # Close the file after reading the entire dp table
         self.dataOperator.closeFile()
         self.dataOperator.deleteFile()
+        print('Total Lines Read: ', numLinesRead)
         return relocatedPars        
 
 

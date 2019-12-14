@@ -6,7 +6,7 @@ import os
 class DataOperator:
     def __init__(self):
         self.filename = 'dpTable2222.dat'
-        self.offset = 0
+        #self.offset = 0
         self.lineOffset = []
         self.deleteFile()
         self.file = None
@@ -18,6 +18,13 @@ class DataOperator:
     def __initFileReader(self):
         if self.file == None:
             self.file = open(self.filename, 'r')
+
+            # Initialize line offset
+            offset = 0
+            for line in self.file:
+                self.lineOffset.append(offset)
+                offset += len(line)
+
     
     def deleteFile(self):
         if os.path.exists(self.filename):
@@ -44,8 +51,8 @@ class DataOperator:
             for r in rows:
                 line = self.genOutputTupleSeqStr(r)
                 self.file.write(line)
-                self.lineOffset.append(self.offset)
-                self.offset += len(line)
+                #self.lineOffset.append(self.offset)
+                #self.offset += len(line)
         except:
             self.closeFile()
             self.deleteFile()
@@ -83,6 +90,7 @@ class DataOperator:
             raise
         
         return dpRows
+
 
 if __name__ == '__main__':
     dataOperator = DataOperator()
