@@ -4,8 +4,9 @@ import random
 import copy
 
 class RandomSelector:
-    def getRandomizedMatrix(self, originalMatrix, bIndexes, ii, jj, kk=None):
+    def getRandomizedMatrix(self, originalMatrix, bIndexes, iQuantized, ii, jj, kk=None):
         randomizedMatrix = copy.deepcopy(bIndexes)
+        randomizedMatrixQuantized = copy.deepcopy(bIndexes)
         for i in range(np.shape(randomizedMatrix)[0]):
             if i % 2 == 0:
                 w = randomizedMatrix[i]
@@ -19,12 +20,16 @@ class RandomSelector:
                 for iB in range(np.shape(bias)[0]):
                     iRandom = random.randint(0,3)
                     bias[iB] = bias[iB][iRandom]
+                    
+        randomizedMatrixQuantized = copy.deepcopy(randomizedMatrix)
         if kk != None:
             randomizedMatrix[ii][jj][kk] = originalMatrix[ii][jj][kk]
+            randomizedMatrixQuantized[ii][jj][kk][iQuantized] = bIndexes[ii][jj][kk][iQuantized]
         else:
             randomizedMatrix[ii][jj] = originalMatrix[ii][jj]
+            randomizedMatrixQuantized[ii][jj][iQuantized] = bIndexes[ii][jj][iQuantized]
 
-        return randomizedMatrix
+        return randomizedMatrix, randomizedMatrixQuantized
     
 
 if __name__ == '__main__':
