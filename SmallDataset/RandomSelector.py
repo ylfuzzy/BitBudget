@@ -6,6 +6,7 @@ import copy
 class RandomSelector:
     def getRandomizedMatrix(self, originalMatrix, bIndexes, iQuantized, ii, jj, kk=None):
         randomizedMatrix = copy.deepcopy(bIndexes)
+        randomizedMatrix = [np.array(row) for row in randomizedMatrix]
         for i in range(np.shape(randomizedMatrix)[0]):
             if i % 2 == 0:
                 w = randomizedMatrix[i]
@@ -21,6 +22,7 @@ class RandomSelector:
                     bias[iB] = bias[iB][iRandom]
 
         randomizedMatrixQuantized = copy.deepcopy(randomizedMatrix)
+        randomizedMatrixQuantized = [np.array(row) for row in randomizedMatrixQuantized]
         if kk != None:
             randomizedMatrix[ii][jj][kk] = originalMatrix[ii][jj][kk]
             randomizedMatrixQuantized[ii][jj][kk] = bIndexes[ii][jj][kk][iQuantized]
@@ -38,8 +40,9 @@ if __name__ == '__main__':
     originalMatrix = np.load('./Original_weights_H6_H3_Adam_Relu_Softmax_01_22.npy')
     print(np.shape(bIndexes[3]))
     print(bIndexes)
-    # randomSelector = RandomSelector()
-    # randomizedMatrix, randomizedMatrixQuanitzed = randomSelector.getRandomizedMatrix(originalMatrix, bIndexes, 0, 0, 0, 0)
+    randomSelector = RandomSelector()
+    randomizedMatrix, randomizedMatrixQuanitzed = randomSelector.getRandomizedMatrix(originalMatrix, bIndexes, 0, 0, 0, 0)
+    print(type(randomizedMatrix))
     # # print(np.shape(randomizedMatrix[1]))
     # print(randomizedMatrix[0][0][0])
     # print('------')
